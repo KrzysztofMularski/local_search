@@ -1,0 +1,11 @@
+*
+!*/
+!*.*
+trajectories
+video
+opt-viewer
+exact
+*.txt
+!Makefile
+*.pgm
+other
