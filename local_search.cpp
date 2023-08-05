@@ -276,7 +276,6 @@ class LocalSearch {
             if (omp_thread_id == 0) {
                 debug("[OMP] [Number of threads]: ", omp_get_num_threads());
                 sphereAtoms = new std::vector<std::vector<int>>[omp_get_num_threads()];
-                // testSpecificPairs();
             }
 
 #pragma omp barrier
@@ -285,7 +284,6 @@ class LocalSearch {
                 // one route
                 int i, j;
                 choosePairRandom(i, j);
-                // debug("[New route] (", i, ", ", j, ")");
 
                 LocalSearchResult routeBest = traverse(i, j);
                 saveIfBest(routeBest.rmsdValue, routeBest.i, routeBest.j);
@@ -381,7 +379,8 @@ int readArgs(int argc, char *argv[], FileManager &fileManager) {
         std::cout << "  --memory-size=SIZE                  [double:0.1] [0, 1] where 0 is no memory, and 1 is remembering whole matrix" << std::endl;
 
         std::cout << "  --random-seed=[true/false]          [bool:true] random seed for srand()" << std::endl;
-        std::cout << "  --matrix-size=SIZE                  [int:-1] limiting matrix to SIZE by SIZE, if -1 then SIZE is max for current trajectory file" << std::endl;
+        std::cout << "  --matrix-size=SIZE                  [int:-1] limiting matrix to SIZE by SIZE, if -1 then SIZE is max for current trajectory file"
+                  << std::endl;
         std::cout << "  --show-logs=[true/false]            [bool:true] show any logs in the console" << std::endl;
         std::cout << "  --show-rmsd-counter=[true/false]    [bool:false] show rsmd counter in the console" << std::endl;
         std::cout << "  --show-current-best=[true/false]    [bool:true] show current best value, works only if --show-logs is set" << std::endl;
@@ -395,7 +394,7 @@ int readArgs(int argc, char *argv[], FileManager &fileManager) {
         std::cout << "  maps to true:  [true]  [t] [1] [yes] [y] [on]  []" << std::endl;
         std::cout << "  maps to false: [false] [f] [0] [no]  [n] [off]" << std::endl;
         return 1;
-        
+
     } else if (argc == 3 && strcmp(argv[1], "-c") == 0) {
         std::string configFilename = std::string(argv[2]);
 

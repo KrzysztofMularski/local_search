@@ -80,7 +80,7 @@ struct Config {
         timeLimitMinutes = 0.5;
         ompThreadsPerCore = 0;
         writeAsCSV = false;
-        runRepetitions = 2;
+        runRepetitions = 1;
 
         jumpFromLocalAreaChance = 0.1;
         randomFrameWhileSwappingChance = 0.01;

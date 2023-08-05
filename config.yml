@@ -3,17 +3,17 @@ trajectoryFilename: ./trajectories/100_5ns_trajectory.pdb
 # trajectoryFilename: ./trajectories/303_5ns_trajectory.pdb
 
 timeLimitMinutes: 0.1666666666
-ompThreadsPerCore: 0
-writeAsCSV: true
-runRepetitions: 2
+ompThreadsPerCore: 2
+writeAsCSV: false
+runRepetitions: 1
 
 jumpFromLocalAreaChance: 0.1
 randomFrameWhileSwappingChance: 0.01
-memorySize: 0.01
+memorySize: 0
 
 matrixSize: -1
-randomSeed: true
+randomSeed: false
 showDebugCurrentBest: true
 showDebugRouteBest: false
-showLogs: false
+showLogs: true
 showRMSDCounter: false

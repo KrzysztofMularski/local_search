@@ -127,6 +127,7 @@ class RMSDCalculation {
   public:
     // calculating RMSD on spheres, on choosen frames
     double calculateRMSDSuperpose(int secondFrame) {
+        // std::cout << "hello" << std::endl;
         if (config.memorySize != 0 && pairInMemory(FRAMEONE, FRAMETWO)) {
             return -1.0;
         }
@@ -141,6 +142,7 @@ class RMSDCalculation {
             sphereMatrix.assign(2, {});
             sphereMatrix[0].assign(atomsInSphere, {});
             sphereMatrix[1].assign(atomsInSphere, {});
+
             for (int j = 0; j < atomsInSphere; j++) {
                 sphereMatrix[0][j] = A[FRAMEONE][sphereAtoms[omp_thread_id][s][j]];
                 sphereMatrix[1][j] = A[FRAMETWO][sphereAtoms[omp_thread_id][s][j]];
@@ -164,7 +166,9 @@ class RMSDCalculation {
     void atomsAllocation(int firstFrame) {
         FRAMEONE = firstFrame;
         AllocationsCount++;
-        sphereAtoms[omp_thread_id].assign(SPHERES, {});
+        std::vector<int> temp;
+        temp.reserve(ATOMS);
+        sphereAtoms[omp_thread_id].assign(SPHERES, temp);
         for (int i = 0; i < ATOMS; i++) {
             for (int j = 0; j < SPHERES; j++) {
                 if (atomsDistanceCalc(i, sphereCA[j]) <= sphereRadius) {
