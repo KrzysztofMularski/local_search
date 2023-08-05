@@ -8,19 +8,9 @@
 
 class RMSDCalculation {
   private:
-    // assistant function to set frame number
-    int whichFrame(int i) {
-        if (i == 0)
-            return FRAMEONE;
-        return FRAMETWO;
-    }
 
     // calculating distance between 2 atoms, used when allocating atoms to spheres.
     double atomsDistanceCalc(int atom1, int atom2) {
-        // double result = sqrt(pow(A[FRAMEONE][atom1][0] - A[FRAMEONE][atom2][0], 2) +
-        //                      pow(A[FRAMEONE][atom1][1] - A[FRAMEONE][atom2][1], 2) +
-        //                      pow(A[FRAMEONE][atom1][2] - A[FRAMEONE][atom2][2], 2));
-        // return result;
         double result = (A[FRAMEONE][atom1][0] - A[FRAMEONE][atom2][0]) * (A[FRAMEONE][atom1][0] - A[FRAMEONE][atom2][0]) +
                         (A[FRAMEONE][atom1][1] - A[FRAMEONE][atom2][1]) * (A[FRAMEONE][atom1][1] - A[FRAMEONE][atom2][1]) +
                         (A[FRAMEONE][atom1][2] - A[FRAMEONE][atom2][2]) * (A[FRAMEONE][atom1][2] - A[FRAMEONE][atom2][2]);
@@ -122,7 +112,7 @@ class RMSDCalculation {
         if (memorySet.find(newPair) == memorySet.end()) {
             // not in memory
             memorySet.insert(newPair);
-            if (memorySet.size() > config.matrixSize * config.matrixSize * config.memorySize) {
+            if (memorySet.size() > MEMORY_SIZE) {
                 memorySet.erase(memorySet.begin());
             }
             omp_unset_lock(&memoryMutex);
@@ -137,7 +127,7 @@ class RMSDCalculation {
   public:
     // calculating RMSD on spheres, on choosen frames
     double calculateRMSDSuperpose(int secondFrame) {
-        if (config.usingMemory && pairInMemory(FRAMEONE, FRAMETWO)) {
+        if (config.memorySize != 0 && pairInMemory(FRAMEONE, FRAMETWO)) {
             return -1.0;
         }
         // else calculate rmsd
@@ -170,72 +160,19 @@ class RMSDCalculation {
         return result;
     }
 
-    // calculating RMSD on spheres, on choosen frames
-    double calculateRMSDSuperposeOld(int secondFrame) {
-        FRAMETWO = secondFrame;
-        RMSDCalculationCount++;
-        debugRMSD();
-        double result = 0;
-        double tempResult;
-        std::vector<std::vector<std::vector<double>>> sphereMatrix;
-        std::vector<std::vector<double>> tempMatrix;
-        double tempRMSD;
-        for (int s = 0; s < SPHERES; s++) {
-            int atomsInSphere = sphereAtoms[omp_thread_id][s].size();
-            sphereMatrix = {};
-            for (int i = 0; i < 2; i++) {
-                sphereMatrix.push_back({});
-                for (int j = 0; j < atomsInSphere; j++) {
-                    sphereMatrix[i].push_back(A[whichFrame(i)][sphereAtoms[omp_thread_id][s][j]]);
-                }
-                if (i > 0) {
-                    tempResult = 0;
-                    tempMatrix = sphereMatrix[i];
-                    // superpose(sphereMatrix[i - 1], tempMatrix);
-                    for (int j = 0; j < atomsInSphere; j++) {
-                        for (int k = 0; k < 3; k++) {
-                            // tempRMSD = pow(tempMatrix[j][k] - sphereMatrix[i - 1][j][k], 2);
-                            // tempResult += tempRMSD;
-                            tempRMSD = tempMatrix[j][k] - sphereMatrix[i - 1][j][k];
-                            tempResult += tempRMSD * tempRMSD;
-                        }
-                    }
-                    // tempResult /= ((double)atomsInSphere * (double)3);
-                    tempResult /= (double)atomsInSphere * 3.0;
-                    tempResult = sqrt(tempResult);
-                    result += tempResult;
-                }
-            }
-        }
-        return result;
-    }
-
     // allocating atoms into spheres, based on sphereRadius
     void atomsAllocation(int firstFrame) {
         FRAMEONE = firstFrame;
         AllocationsCount++;
-        // sphereAtoms[omp_thread_id] = {};
         sphereAtoms[omp_thread_id].assign(SPHERES, {});
-        // for (int i = 0; i < SPHERES; i++) {
-        //     sphereAtoms[omp_thread_id].push_back({});
-        // }
         for (int i = 0; i < ATOMS; i++) {
             for (int j = 0; j < SPHERES; j++) {
                 if (atomsDistanceCalc(i, sphereCA[j]) <= sphereRadius) {
                     sphereAtoms[omp_thread_id][j].push_back(i);
-                    // sphereSize[j]++;
                 }
             }
         }
     }
-
-    // //main function to calculate RMSD between 2 frames
-    // double calculateRMSD(int firstFrame, int secondFrame) {
-    //     FRAMEONE = firstFrame;
-    //     FRAMETWO = secondFrame;
-    //     atomsAllocation();
-    //     return calculateRMSDSuperpose();
-    // }
 };
 
 #endif // RMSD_CALCULATION_H

@@ -35,11 +35,7 @@ extern std::vector<std::vector<std::vector<double>>> A;
 // Maps sphere to CA; CAAtomNumber[<sphere>]
 extern std::vector<int> sphereCA;
 
-// Numer of atoms in [<sphere>]
-// extern std::vector<int> sphereSize;
-
 // List of atoms in [<sphere>]
-// extern std::vector<std::vector<int>> sphereAtoms;
 extern std::vector<std::vector<int>>* sphereAtoms;
 
 struct Config {
@@ -52,10 +48,16 @@ struct Config {
     double randomFrameWhileSwappingChance;      // probability of choosing random frame while swapping allocations
     bool randomSeed;                            // random seed for srand()
     double ompThreadsPerCore;                   // omp threads number per one cpu core
-    bool usingMemory;                           // is memory beeing used
     double memorySize;                          // [0, 1] where 0 is no memory, and 1 is remembering whole matrix
+    bool writeAsCSV;                            // each run of a program generates one line in CSV format
+    bool showLogs;                              // show logs in the console
+    bool showRMSDCounter;                       // show rsmd counter in the console
+    int runRepetitions;                         // program execution repetition number
 
     void print() {
+        if (!DEBUG) {
+            return;
+        }
         std::cout << "Config: " << std::endl;
         std::cout << " - " << "trajectoryFilename = " << trajectoryFilename << std::endl;
         std::cout << " - " << "matrixSize = " << matrixSize << std::endl;
@@ -66,8 +68,30 @@ struct Config {
         std::cout << " - " << "randomFrameWhileSwappingChance = " << randomFrameWhileSwappingChance << std::endl;
         std::cout << " - " << "randomSeed = " << (randomSeed ? "true" : "false") << std::endl;
         std::cout << " - " << "ompThreadsPerCore = " << ompThreadsPerCore << std::endl;
-        std::cout << " - " << "usingMemory = " << (usingMemory ? "true" : "false") << std::endl;
         std::cout << " - " << "memorySize = " << memorySize << std::endl;
+        std::cout << " - " << "writeAsCSV = " << (writeAsCSV ? "true" : "false") << std::endl;
+        std::cout << " - " << "showLogs = " << (showLogs ? "true" : "false") << std::endl;
+        std::cout << " - " << "showRMSDCounter = " << (showRMSDCounter ? "true" : "false") << std::endl;
+        std::cout << " - " << "runRepetitions = " << runRepetitions << std::endl;
+    }
+
+    void initDefault() {
+        trajectoryFilename = "";
+        timeLimitMinutes = 0.5;
+        ompThreadsPerCore = 0;
+        writeAsCSV = false;
+        runRepetitions = 2;
+
+        jumpFromLocalAreaChance = 0.1;
+        randomFrameWhileSwappingChance = 0.01;
+        memorySize = 0.1;
+
+        randomSeed = true;
+        matrixSize = -1;
+        showLogs = true;
+        showRMSDCounter = false;
+        showDebugCurrentBest = true;
+        showDebugRouteBest = false;
     }
 };
 
@@ -84,6 +108,8 @@ struct PairHash {
 extern std::unordered_set<std::pair<int, int>, PairHash> memorySet;
 
 extern omp_lock_t memoryMutex;
+
+extern int MEMORY_SIZE;
 
 inline extern int getRandom(int offset, int range) {
     return offset + (rand() % (range + 1));
@@ -131,12 +157,16 @@ inline extern void debugRMSD() {
 }
 
 template <class T> inline extern void print(T t) {
-    std::cout << t << std::endl;
+    if (DEBUG) {
+        std::cout << t << std::endl;
+    }
 }
 
 template <class T, class... Args> inline extern void print(T t, Args... args) {
-    std::cout << t;
-    print(args...);
+    if (DEBUG) {
+        std::cout << t;
+        print(args...);
+    }
 }
 
 #endif // GLOBALS_H

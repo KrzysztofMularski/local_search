@@ -1,5 +1,5 @@
 CC = clang++
-CFLAGS = -g -Wall
+CFLAGS = -g -Wall -Ofast
 LIBS = -DEIGEN_DONT_PARALLELIZE -fopenmp=libomp
 OPTS = -fsave-optimization-record -foptimization-record-file=./opt-viewer/opts.yaml
 

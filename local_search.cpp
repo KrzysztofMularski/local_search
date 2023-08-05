@@ -1,9 +1,11 @@
 #include <atomic>
 #include <chrono>
 #include <cstdlib>
+#include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <omp.h>
-#include <iomanip>
+#include <stdexcept>
 
 #include "RMSD_calculation.h"
 #include "file_manager.h"
@@ -29,11 +31,7 @@ std::vector<std::vector<std::vector<double>>> A;
 // Maps sphere to CA; CAAtomNumber[<sphere>]
 std::vector<int> sphereCA;
 
-// Numer of atoms in [<sphere>]
-// std::vector<int> sphereSize;
-
 // List of atoms in [<sphere>]
-// std::vector<std::vector<int>> sphereAtoms;
 std::vector<std::vector<int>> *sphereAtoms;
 
 Config config;
@@ -41,6 +39,8 @@ Config config;
 std::unordered_set<std::pair<int, int>, PairHash> memorySet;
 
 omp_lock_t memoryMutex;
+
+int MEMORY_SIZE;
 
 class LocalSearch {
   public:
@@ -101,16 +101,6 @@ class LocalSearch {
 
     inline bool insideMatrixBoundaries(int &i) {
         return i >= 0 && i < config.matrixSize;
-    }
-
-    inline void swappingAllocations(int &allocatedOnFrame, int &changingFrame) {
-        int temp = changingFrame;
-        changingFrame = allocatedOnFrame;
-        allocatedOnFrame = temp;
-        // debug("[swapping] (", changingFrame, ", ", allocatedOnFrame, ") -> (",
-        // allocatedOnFrame, ", ", changingFrame, ")");
-
-        rmsd.atomsAllocation(allocatedOnFrame);
     }
 
     inline double changeAllocationsAndCalculate(int &allocatedOnFrame, int &changingFrame) {
@@ -227,9 +217,7 @@ class LocalSearch {
                     }
                 }
                 // cannot go straight line anymore
-
                 // cannot change direction because we came from there
-
                 // trying to jump
                 step = getRandom(0, 1) * 2 - 1; // -1 or +1
                 changedSidesAlready = false;
@@ -273,164 +261,6 @@ class LocalSearch {
             }
         }
     }
-
-    LocalSearchResult traverse_old(int i, int j, bool allocationOnInit = true) {
-        // traversing route: i != j checked
-        int allocatedOnFrame = i;
-        int changingFrame = j;
-        if (allocationOnInit) {
-            rmsd.atomsAllocation(allocatedOnFrame);
-        }
-        LocalSearchResult routeBest = {
-            rmsd.calculateRMSDSuperpose(changingFrame),
-            allocatedOnFrame,
-            changingFrame,
-        };
-        // debug("[_New route] (", routeBest.i, ", ", routeBest.j, ") = ",
-        // routeBest.rmsdValue); debug("(", routeBest.i, ", ", routeBest.j, ")=",
-        // routeBest.rmsdValue);
-        bool changedSidesAlready = false;
-        bool swappedAlready = false;
-
-        // choosing direction
-        int step = getRandom(0, 1) * 2 - 1; // -1 or +1
-
-        // debug("[_1] step=", step, ", changedSidesAlready=", changedSidesAlready,
-        // ", swappedAlready=", swappedAlready);
-
-        while (true) {
-            // traversing route part - straight line
-
-            int newChangingFrame = changingFrame + step;
-            // debug("[_Cheking cell] (", allocatedOnFrame, ", ", newChangingFrame,
-            // ")"); debug("(", allocatedOnFrame, ", ", newChangingFrame, ")");
-            // debug("[_2] newChangingFrame=", newChangingFrame);
-            if (!insideMatrixBoundaries(newChangingFrame) || newChangingFrame == allocatedOnFrame) {
-                // debug("[_Failed]");
-                // debug("[_3] !insideMatrixBoundaries=",
-                // !insideMatrixBoundaries(newChangingFrame)); debug("[_4] frames has
-                // same id: ", newChangingFrame == allocatedOnFrame); try changing sides
-                if (!changedSidesAlready) {
-                    // debug("[_5] !changedSidesAlready ", !changedSidesAlready);
-                    step *= -1;
-                    changedSidesAlready = true;
-                    continue;
-                } else if (!swappedAlready) {
-                    // debug("[_6] !swappedAlready ", !swappedAlready);
-
-                    swappedAlready = true;
-                    step = getRandom(0, 1) * 2 - 1; // -1 or +1
-                    changedSidesAlready = false;
-                    swappingAllocations(allocatedOnFrame, changingFrame);
-                    continue;
-                } else {
-                    // debug("[_7] !swappedAlready ", !swappedAlready);
-                    return routeBest;
-                }
-            }
-
-            double newValue = rmsd.calculateRMSDSuperpose(newChangingFrame);
-
-            // debug("[_New value] (", allocatedOnFrame, ", ", newChangingFrame, ") =
-            // ", newValue); debug("(", allocatedOnFrame, ", ", newChangingFrame, ") =
-            // ", newValue); debug("[_8] newValue=", newValue);
-            if (newValue > routeBest.rmsdValue) {
-                saveIfRouteBest(routeBest, newValue, allocatedOnFrame, newChangingFrame);
-                changingFrame = newChangingFrame;
-                while (true) {
-                    // following direction
-                    newChangingFrame = changingFrame + step;
-                    // debug("[_9] newChangingFrame=", newChangingFrame);
-                    // debug("[_Cheking cell] (", allocatedOnFrame, ", ",
-                    // newChangingFrame, ")"); debug("(", allocatedOnFrame, ", ",
-                    // newChangingFrame, ") ");
-                    if (!insideMatrixBoundaries(newChangingFrame) || newChangingFrame == allocatedOnFrame) {
-                        // debug("[_Failed] ", "!inside=",
-                        // !insideMatrixBoundaries(newChangingFrame), ", ",
-                        //       newChangingFrame == allocatedOnFrame);
-                        // debug("[_10]");
-                        break;
-                    }
-                    newValue = rmsd.calculateRMSDSuperpose(newChangingFrame);
-                    // debug("[_New value] (", allocatedOnFrame, ", ", newChangingFrame,
-                    // ") = ", newValue); debug("(", allocatedOnFrame, ", ",
-                    // newChangingFrame, ") = ", newValue); debug("[_11] newValue=",
-                    // newValue);
-                    if (newValue > routeBest.rmsdValue) {
-                        // debug("[_12]");
-                        saveIfRouteBest(routeBest, newValue, allocatedOnFrame, newChangingFrame);
-                        changingFrame = newChangingFrame;
-                        // debug("[_13] changingFrame=", changingFrame);
-                        continue;
-                    } else {
-                        // debug("[_14]");
-                        break;
-                    }
-                }
-                // cannot change direction because we came from it, so we swap
-                swappedAlready = true;
-                changedSidesAlready = false;
-                swappingAllocations(allocatedOnFrame, changingFrame);
-                step = getRandom(0, 1) * 2 - 1; // -1 or +1
-                // debug("[_15] step=", step);
-                continue;
-            } else if (!changedSidesAlready) {
-                step *= -1;
-                changedSidesAlready = true;
-                // debug("[_17] step=", step);
-                continue;
-            } else {
-                // debug("[_18]");
-                if (!swappedAlready) {
-                    // debug("[_19]");
-
-                    swappedAlready = true;
-                    changedSidesAlready = false;
-                    swappingAllocations(allocatedOnFrame, changingFrame);
-                    step = getRandom(0, 1) * 2 - 1; // -1 or +1
-                    continue;
-                } else {
-                    // debug("[_20]");
-                    return routeBest;
-                }
-            }
-            auto stop = std::chrono::steady_clock::now();
-            std::chrono::duration<double> elapsed = stop - start;
-            if (elapsed.count() > config.timeLimitMinutes * 60) {
-                return routeBest;
-            }
-        }
-    }
-
-    // void calculateBestPairs() {
-    //     for (const std::pair<int, int> &pair : bestResultsArray) {
-    //         rmsd.atomsAllocation(pair.first);
-    //         double newValue = rmsd.calculateRMSDSuperpose(pair.second);
-    //         debug("[No sqrt -> sqrt]: [", pair.first, ", ", pair.second, "] = ", newValue);
-    //     }
-    // }
-
-    // void testSpecificPairs() {
-    //     // [DEBUG] [Current best]: [803, 220] = 15.3397  94.911
-    //     // [DEBUG] [Current best]: [887, 106] = 18.3842  113.509
-    //     // [DEBUG] [Current best]: [872, 115] = 18.5634  114.105
-    //     // [DEBUG] [Current best]: [965, 57] = 21.369    118.398
-    //     // [DEBUG] [Current best]: [23, 949] = 22.6254   124.4
-    //     //
-    //     // [DEBUG] [Current best]: [0, 934] = 21.5337
-    //     // [DEBUG] [Current best]: [995, 40] = 21.9388
-    //     // [DEBUG] [Current best]: [45, 986] = 22.179653
-    //
-    //     const std::vector<std::pair<int, int>> arr = {
-    //         { 803, 220 }, { 887, 106 }, { 872, 115 }, { 965, 57 }, { 23, 949 }, { 0, 934 }, { 995, 40 }, { 45, 986 },
-    //     };
-    //
-    //     for (const std::pair<int, int> &pair : arr) {
-    //         rmsd.atomsAllocation(pair.first);
-    //         double newValue = rmsd.calculateRMSDSuperpose(pair.second);
-    //         debug("[custom]: [", pair.first, ", ", pair.second, "] = ", newValue);
-    //     }
-    // }
 
     void run() {
         omp_set_num_threads(omp_get_num_procs() * config.ompThreadsPerCore);
@@ -477,46 +307,197 @@ class LocalSearch {
 
         delete[] sphereAtoms;
 
-        // przez 5(parametr) procent przez ileś iteracji(parametr) nie poprawia
-        // zawsze sfery są z niższego indeksu
-        // wylosować 1 i 2 klatki
-        // pierwsza zostaje 1, druga podróżuje
-        // potem druga zostaje i 1 podróżuje
-        // potem losujemy inną parę
-        //
-        // while(1) {
-        // czy koniec będzie zależny od czasu od ostatniego rozwiązania, od
-        // różnic rmsd, czy jako parametr czy przejmować się już znalezionymi
-        // wartościami czy uznać że rmsd pomiędzy 1 a 2 jest takie samo jak
-        // pomiędzy 2 a 1?
-        // }
-
         auto stop = std::chrono::steady_clock::now();
         std::chrono::duration<double> elapsed = stop - start;
         print("Local Search Results:");
         print(" - Computation time: ", elapsed.count(), "s");
         print(" - RMSD counted: ", RMSDCalculationCountGlobal, " times.");
         print(" - Atoms allocated: ", AllocationsCountGlobal, " times.");
+
+        if (config.writeAsCSV) {
+            FileManager::writeResultsAsCSV(bestResult.i, bestResult.j, bestResult.rmsdValue, elapsed.count());
+        }
+
         return;
     }
 };
+
+void resetGlobals() {
+    RMSDCalculationCount = 0;
+    AllocationsCount = 0;
+    AlreadyShowedRMSDCalculationCount = false;
+    memorySet.clear();
+}
+
+// Function to parse a value of type T from a string
+template <typename T> T parseValue(const std::string &str) {
+    T value;
+    std::istringstream iss(str);
+    if (!(iss >> value)) {
+        throw std::runtime_error("Failed to parse value from string: " + str);
+    }
+    return value;
+}
+
+// Function to parse a boolean value from a string
+bool parseBoolean(const std::string &str) {
+    std::string lowerStr = str;
+    std::transform(lowerStr.begin(), lowerStr.end(), lowerStr.begin(), ::tolower);
+    if (lowerStr == "true" || lowerStr == "t" || lowerStr == "1" || lowerStr == "yes" || lowerStr == "y" || lowerStr == "on" || lowerStr == "") {
+        return true;
+    } else if (lowerStr == "false" || lowerStr == "f" || lowerStr == "0" || lowerStr == "no" || lowerStr == "n" || lowerStr == "off") {
+        return false;
+    } else {
+        throw std::runtime_error("Failed to parse boolean value from string: " + str);
+    }
+}
+
+int readArgs(int argc, char *argv[], FileManager &fileManager) {
+
+    if (argc == 1) {
+        std::cout << "local_search: too few arguments" << std::endl;
+        std::cout << "Try 'local_search --help' for more information." << std::endl;
+        return 1;
+    } else if (argc == 2 && (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
+        std::cout << "Usage: local_search [OPTION]..." << std::endl;
+        std::cout << std::endl;
+        std::cout << "Performing local search algorithm to find the greatest deviation of provided trajectory frames by calculating RMSD value between them."
+                  << std::endl;
+        std::cout << std::endl;
+        std::cout << "Options:" << std::endl;
+        std::cout << "  -c CONFIG                           provide config parameters via CONFIG file" << std::endl;
+        std::cout << "  -h, --help                          display this message and exit" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Parameters if no config provided. In descriptions: [type:default] format is used," << std::endl;
+        std::cout << "where type is the type of parameter, and default is its default value." << std::endl;
+        std::cout << "  --trajectory=TRAJECTORY             [string:] [mandatory] trajectory filename in .pdb format" << std::endl;
+        std::cout << "  --time-limit=TIME                   [double:1.0] max time in minutes for whole local search to finish" << std::endl;
+        std::cout << "  --omp-threads=NUM                   [double:0] omp threads number per one cpu core" << std::endl;
+        std::cout << "  --write-as-csv=[true/false]         [bool:false] each run of a program generates one line in CSV format" << std::endl;
+        std::cout << "  --repetitions=REPS                  [int:2] number of program executions" << std::endl;
+
+        std::cout << "  --jump-chance=PROB                  [double:0.1] probability of jumping from local area" << std::endl;
+        std::cout << "  --random-frame-chance=PROB          [double:0.01] probability of choosing random frame while swapping allocations" << std::endl;
+        std::cout << "  --memory-size=SIZE                  [double:0.1] [0, 1] where 0 is no memory, and 1 is remembering whole matrix" << std::endl;
+
+        std::cout << "  --random-seed=[true/false]          [bool:true] random seed for srand()" << std::endl;
+        std::cout << "  --matrix-size=SIZE                  [int:-1] limiting matrix to SIZE by SIZE, if -1 then SIZE is max for current trajectory file" << std::endl;
+        std::cout << "  --show-logs=[true/false]            [bool:true] show any logs in the console" << std::endl;
+        std::cout << "  --show-rmsd-counter=[true/false]    [bool:false] show rsmd counter in the console" << std::endl;
+        std::cout << "  --show-current-best=[true/false]    [bool:true] show current best value, works only if --show-logs is set" << std::endl;
+        std::cout << "  --show-route-best=[true/false]      [bool:false] show current route best value, works only if --show-logs is set" << std::endl;
+        std::cout << std::endl;
+        std::cout << "Examples:" << std::endl;
+        std::cout << "  local_search -c config.yml" << std::endl;
+        std::cout << "  local_search --trajectory=traj.pdb --time-limit=0.5 --repetitions=5" << std::endl;
+        std::cout << std::endl;
+        std::cout << "All bool possible values:" << std::endl;
+        std::cout << "  maps to true:  [true]  [t] [1] [yes] [y] [on]  []" << std::endl;
+        std::cout << "  maps to false: [false] [f] [0] [no]  [n] [off]" << std::endl;
+        return 1;
+        
+    } else if (argc == 3 && strcmp(argv[1], "-c") == 0) {
+        std::string configFilename = std::string(argv[2]);
+
+        if (!fileManager.readConfig(configFilename)) {
+            return 1;
+        }
+        return 0;
+    } else {
+        std::unordered_map<std::string, std::string> argMap;
+
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+            if (arg.size() > 2 && arg.substr(0, 2) == "--") {
+                arg = arg.substr(2);
+                size_t equalsPos = arg.find('=');
+                std::string argName = arg.substr(0, equalsPos);
+                std::string argValue;
+                if (equalsPos != std::string::npos) {
+                    argValue = arg.substr(equalsPos + 1);
+                }
+                argMap[argName] = argValue;
+            }
+        }
+
+        config.initDefault();
+
+        if (argMap.count("trajectory")) {
+            config.trajectoryFilename = argMap["trajectory"];
+        } else {
+            std::cout << "Trajectory file is mandatory." << std::endl;
+            std::cout << "Try 'local_search --help' for more information." << std::endl;
+            return 1;
+        }
+        if (argMap.count("time-limit")) {
+            config.timeLimitMinutes = parseValue<double>(argMap["time-limit"]);
+        }
+        if (argMap.count("omp-threads")) {
+            config.ompThreadsPerCore = parseValue<double>(argMap["omp-threads"]);
+        }
+        if (argMap.count("write-as-csv")) {
+            config.writeAsCSV = parseBoolean(argMap["write-as-csv"]);
+        }
+        if (argMap.count("repetitions")) {
+            config.runRepetitions = parseValue<int>(argMap["repetitions"]);
+        }
+        if (argMap.count("jump-chance")) {
+            config.jumpFromLocalAreaChance = parseValue<double>(argMap["jump-chance"]);
+        }
+        if (argMap.count("random-frame-chance")) {
+            config.randomFrameWhileSwappingChance = parseValue<double>(argMap["random-frame-chance"]);
+        }
+        if (argMap.count("memory-size")) {
+            config.memorySize = parseValue<double>(argMap["memory-size"]);
+        }
+        if (argMap.count("random-seed")) {
+            config.randomSeed = parseBoolean(argMap["random-seed"]);
+        }
+        if (argMap.count("matrix-size")) {
+            config.matrixSize = parseValue<int>(argMap["matrix-size"]);
+        }
+        if (argMap.count("show-logs")) {
+            config.showLogs = parseBoolean(argMap["show-logs"]);
+        }
+        if (argMap.count("show-rmsd-counter")) {
+            config.showRMSDCounter = parseBoolean(argMap["show-rmsd-counter"]);
+        }
+        if (argMap.count("show-current-best")) {
+            config.showDebugCurrentBest = parseBoolean(argMap["show-current-best"]);
+        }
+        if (argMap.count("show-route-best")) {
+            config.showDebugRouteBest = parseBoolean(argMap["show-route-best"]);
+        }
+
+        DEBUG = config.showLogs;
+        DEBUG_RMSD = config.showRMSDCounter;
+
+        if (DEBUG) {
+            for (const auto &kv : argMap) {
+                std::cout << "(arg) [" << kv.first << "]: [" << kv.second << "]" << std::endl;
+            }
+        }
+        return 0;
+    }
+
+    return 1;
+}
 
 int main(int argc, char *argv[]) {
 
     omp_init_lock(&memoryMutex);
     FileManager fileManager;
-    // if (argc <= 1) {
-    //     std::cout << "Too few arguments" << std::endl;
-    //     return 1;
-    // }
-
-    // std::string configFilename = argv[1];
-    std::string configFilename = "./config.yml";
-    if (!fileManager.readConfig(configFilename)) {
-        return 1;
+    int result = readArgs(argc, argv, fileManager);
+    if (result != 0) {
+        return result;
     }
 
-    fileManager.readTrajectory();
+    result = fileManager.readTrajectory();
+    if (result != 0) {
+        return result;
+    }
+
+    MEMORY_SIZE = config.matrixSize * config.matrixSize * config.memorySize;
 
     if (config.randomSeed) {
         srand((unsigned)time(NULL));
@@ -524,10 +505,14 @@ int main(int argc, char *argv[]) {
         srand((unsigned)NULL);
     }
 
-    LocalSearch localSearch;
+    for (int i = 0; i < config.runRepetitions; i++) {
+        LocalSearch localSearch;
+        resetGlobals();
+        if (i == 0) {
+            config.print();
+        }
+        localSearch.run();
+    }
 
-    config.print();
-
-    localSearch.run();
     omp_destroy_lock(&memoryMutex);
 }

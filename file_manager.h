@@ -35,9 +35,11 @@ class FileManager {
 public:
 
     //reading data from input pdb file.
-    bool readTrajectory() {
+    int readTrajectory() {
         const std::string& filename = config.trajectoryFilename;
-        std::cout << "Reading file: " << filename << std::endl;
+        if (DEBUG) {
+            std::cout << "Reading file: " << filename << std::endl;
+        }
         std::string line;
         std::ifstream file1(filename);
         int lines_count = 0;
@@ -47,8 +49,10 @@ public:
             }
             file1.close();
         } else {
-            std::cout << "Cannot find file: " << filename << std::endl;
-            return false;
+            if (DEBUG) {
+                std::cout << "Cannot find file: " << filename << std::endl;
+            }
+            return 1;
         }
         Progress p1(lines_count);
         std::ifstream file(filename);
@@ -87,16 +91,19 @@ public:
             }
             p1.end();
             file.close();
-            std::cout << "File parsed" << std::endl;
-            return true;
+            if (DEBUG) {
+                std::cout << "File parsed" << std::endl;
+            }
+            return 0;
         } else {
-            std::cout << "Cannot find file: " << filename << std::endl;
-            return false;
+            if (DEBUG) {
+                std::cout << "Cannot find file: " << filename << std::endl;
+            }
+            return 1;
         }
     }
 
     bool readConfig(const std::string& filename) {
-        std::cout << "Reading file: " << filename << std::endl;
         std::ifstream file(filename);
         if (file.is_open()) {
             std::string line;
@@ -107,7 +114,7 @@ public:
                 }
                 std::istringstream iss(line);
                 std::string key, value;
-                std::getline(iss, key, '=');
+                std::getline(iss, key, ':');
                 std::getline(iss, value);
                 trim(key);
                 trim(value);
@@ -141,20 +148,62 @@ public:
             if (configMap.find("ompThreadsPerCore") != configMap.end()) {
                 config.ompThreadsPerCore = std::stod(configMap["ompThreadsPerCore"]);
             }
-            if (configMap.find("usingMemory") != configMap.end()) {
-                config.usingMemory = configMap["usingMemory"] == "true" ? true : false;
-            }
             if (configMap.find("memorySize") != configMap.end()) {
                 config.memorySize = std::stod(configMap["memorySize"]);
             }
+            if (configMap.find("writeAsCSV") != configMap.end()) {
+                config.writeAsCSV = configMap["writeAsCSV"] == "true" ? true : false;
+            }
+            if (configMap.find("showLogs") != configMap.end()) {
+                config.showLogs = configMap["showLogs"] == "true" ? true : false;
+            }
+            if (configMap.find("showRMSDCounter") != configMap.end()) {
+                config.showRMSDCounter = configMap["showRMSDCounter"] == "true" ? true : false;
+            }
+            if (configMap.find("runRepetitions") != configMap.end()) {
+                config.runRepetitions = std::stoi(configMap["runRepetitions"]);
+            }
+            
+            DEBUG = config.showLogs;
+            DEBUG_RMSD = config.showRMSDCounter;
+
+            if (DEBUG) {
+                std::cout << "Reading file: " << filename << std::endl;
+            }
 
             file.close();
-            std::cout << "Config file loaded" << std::endl;
+            if (DEBUG) {
+                std::cout << "Config file loaded" << std::endl;
+            }
             return true;
         } else {
-            std::cout << "Cannot find config file: " << filename << std::endl;
+            if (DEBUG) {
+                std::cout << "Cannot find config file: " << filename << std::endl;
+            }
             return false;
         }
+    }
+
+    static void writeResultsAsCSV(int bestI, int bestJ, double bestValue, double elapsedTime) {
+
+        std::cout
+            << "local_search;" 
+            << config.trajectoryFilename << ";"
+            << config.timeLimitMinutes << ";"
+            << config.ompThreadsPerCore << ";"
+            << config.runRepetitions << ";"
+
+            << config.jumpFromLocalAreaChance << ";"
+            << config.randomFrameWhileSwappingChance << ";"
+            << config.memorySize << ";"
+
+            << config.matrixSize << ";"
+
+            << bestI << ";"
+            << bestJ << ";"
+            << bestValue << ";"
+            << elapsedTime
+        << std::endl;
     }
 };
 

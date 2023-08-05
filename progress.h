@@ -2,6 +2,7 @@
 #define PROGRESS_H
 
 #include <iostream>
+#include "globals.h"
 
 class Progress {
 private:
@@ -14,6 +15,9 @@ public:
         allStepsCount = stepsCount;
         barWidth = 70;
         currentSteps = 0;
+        if (!DEBUG) {
+            return;
+        }
         std::cout << "[>";
         for (int i = 1; i < barWidth; ++i) {
             std::cout << " ";
@@ -23,6 +27,13 @@ public:
     }
 
     void improve() {
+        if (!DEBUG) {
+            return;
+        }
+        if (currentSteps % 100000) {
+            currentSteps++;
+            return;
+        }
         std::cout << "[";
         int pos = barWidth * float(currentSteps)/float(allStepsCount);
         for (int i = 0; i < barWidth; ++i) {
@@ -36,6 +47,9 @@ public:
     }
 
     void end() {
+        if (!DEBUG) {
+            return;
+        }
         std::cout << "[";
         int pos = barWidth * 1;
         for (int i = 0; i < barWidth; ++i) {
