@@ -1,9 +1,11 @@
 # trajectoryFilename: ./trajectories/mini_5ns_trajectory.pdb
-trajectoryFilename: ./trajectories/100_5ns_trajectory.pdb
+# trajectoryFilename: ./trajectories/100_5ns_trajectory.pdb
+trajectoryFilename: ./trajectories/100_15ns_trajectory.pdb
 # trajectoryFilename: ./trajectories/303_5ns_trajectory.pdb
+# trajectoryFilename: ./trajectories/303_15ns_trajectory.pdb
 
-timeLimitMinutes: 0.1666666666
-ompThreadsPerCore: 2
+timeLimitMinutes: 1
+ompThreadsPerCore: 1
 writeAsCSV: false
 runRepetitions: 1
 
@@ -12,7 +14,7 @@ randomFrameWhileSwappingChance: 0.01
 memorySize: 0
 
 matrixSize: -1
-randomSeed: false
+randomSeed: true
 showDebugCurrentBest: true
 showDebugRouteBest: false
 showLogs: true

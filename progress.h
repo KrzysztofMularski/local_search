@@ -41,7 +41,7 @@ public:
             else if (i == pos) std::cout << ">";
             else std::cout << " ";
         }
-        printf("] %.2f %%\r", float(currentSteps)/float(allStepsCount)*100.0);
+        printf("] %.2f%%\r", float(currentSteps)/float(allStepsCount)*100.0);
         std::cout.flush();
         currentSteps++;
     }
@@ -57,7 +57,7 @@ public:
             else if (i == pos) std::cout << ">";
             else std::cout << " ";
         }
-        std::cout << "] 100 %      ";
+        std::cout << "] 100%      ";
         std::cout.flush();
         std::cout << std::endl;
         std::cout << "Done!" << std::endl;

@@ -127,7 +127,6 @@ class RMSDCalculation {
   public:
     // calculating RMSD on spheres, on choosen frames
     double calculateRMSDSuperpose(int secondFrame) {
-        // std::cout << "hello" << std::endl;
         if (config.memorySize != 0 && pairInMemory(FRAMEONE, FRAMETWO)) {
             return -1.0;
         }
