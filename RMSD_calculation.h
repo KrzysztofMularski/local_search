@@ -11,9 +11,12 @@ class RMSDCalculation {
 
     // calculating distance between 2 atoms, used when allocating atoms to spheres.
     double atomsDistanceCalc(int atom1, int atom2) {
-        double result = (A[FRAMEONE][atom1][0] - A[FRAMEONE][atom2][0]) * (A[FRAMEONE][atom1][0] - A[FRAMEONE][atom2][0]) +
-                        (A[FRAMEONE][atom1][1] - A[FRAMEONE][atom2][1]) * (A[FRAMEONE][atom1][1] - A[FRAMEONE][atom2][1]) +
-                        (A[FRAMEONE][atom1][2] - A[FRAMEONE][atom2][2]) * (A[FRAMEONE][atom1][2] - A[FRAMEONE][atom2][2]);
+
+        double dx = A[FRAMEONE][atom1][0] - A[FRAMEONE][atom2][0];
+        double dy = A[FRAMEONE][atom1][1] - A[FRAMEONE][atom2][1];
+        double dz = A[FRAMEONE][atom1][2] - A[FRAMEONE][atom2][2];
+
+        double result = dx*dx + dy*dy + dz*dz;
 
         return sqrt(result);
     }

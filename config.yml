@@ -3,9 +3,10 @@
 trajectoryFilename: ./trajectories/100_15ns_trajectory.pdb
 # trajectoryFilename: ./trajectories/303_5ns_trajectory.pdb
 # trajectoryFilename: ./trajectories/303_15ns_trajectory.pdb
+# trajectoryFilename: ./trajectories/303_30ns_trajectory.pdb
 
-timeLimitMinutes: 1
-ompThreadsPerCore: 1
+timeLimitMinutes: 0.166666666
+ompThreadsPerCore: 0
 writeAsCSV: false
 runRepetitions: 1
 
@@ -14,7 +15,7 @@ randomFrameWhileSwappingChance: 0.01
 memorySize: 0
 
 matrixSize: -1
-randomSeed: true
+randomSeed: false
 showDebugCurrentBest: true
 showDebugRouteBest: false
 showLogs: true
